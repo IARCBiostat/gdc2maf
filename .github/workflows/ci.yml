@@ -64,7 +64,21 @@ jobs:
       - name: Build the documentation
         # -W turns warnings into errors, so a broken cross-reference or a
         # malformed docstring fails the build rather than shipping quietly.
-        run: python -m sphinx -b html -W --keep-going docs docs/_build/html
+        # Warnings also go to a file, printed below, because Sphinx's summary
+        # line ("1 warning") does not say what the warning was.
+        run: python -m sphinx -b html -W --keep-going -w sphinx-warnings.log docs docs/_build/html
+
+      - name: Show the Sphinx warnings
+        if: always()
+        run: |
+          if [ -s sphinx-warnings.log ]; then
+            echo "::group::Sphinx warnings"
+            cat sphinx-warnings.log
+            echo "::endgroup::"
+            while IFS= read -r line; do echo "::warning::$line"; done < sphinx-warnings.log
+          else
+            echo "No Sphinx warnings."
+          fi
 
       - name: Upload the built site
         uses: actions/upload-pages-artifact@v3

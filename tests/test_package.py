@@ -100,3 +100,34 @@ def test_docs_home_page_includes_the_readme_rather_than_repeating_it():
     assert "{include} ../README.md" in index
     for marker in README_MARKERS:
         assert marker in index, marker
+
+
+def test_every_sphinx_static_path_exists():
+    # Sphinx warns when an html_static_path entry is missing, and the docs CI
+    # builds with -W. An empty directory cannot be tracked by git, so a path
+    # that exists only on a developer's machine fails the build on a fresh
+    # checkout; each one needs a tracked file to keep it in the repository.
+    import ast
+
+    root = Path(gdc2maf.__file__).parent.parent.parent
+    docs = root / "docs"
+    if not docs.is_dir():  # installed without the repository alongside
+        return
+
+    conf = ast.parse((docs / "conf.py").read_text())
+    static_paths = [
+        ast.literal_eval(node.value)
+        for node in conf.body
+        if isinstance(node, ast.Assign)
+        and any(
+            getattr(t, "id", None) == "html_static_path" for t in node.targets
+        )
+    ]
+    for paths in static_paths:
+        for entry in paths:
+            path = docs / entry
+            assert path.is_dir(), f"docs/conf.py html_static_path entry missing: {entry}"
+            assert any(path.iterdir()), (
+                f"docs/{entry} is empty, so git will not track it and the "
+                "docs build will warn on a fresh checkout"
+            )
