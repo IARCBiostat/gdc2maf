@@ -80,6 +80,10 @@ class Cohort:
     remove_gdc_filter_flags : sequence of str, optional
         ``GDC_FILTER`` flags whose variants are dropped at the merge. Empty
         (the default) keeps every flagged variant and reports the counts.
+    maf_name : str or None, optional
+        File name of the merged MAF inside ``out_dir``. ``None`` uses
+        ``{name}_{spec.name}.maf``. Set it to keep an existing file name when
+        adopting gdc2maf in a pipeline that already has merged MAFs on disk.
     refresh : sequence of str, optional
         Steps to recompute instead of reading the cached output; names from
         :data:`CACHED_STEPS`, or ``"all"``.
@@ -94,6 +98,7 @@ class Cohort:
     sex_fallback_path: str | None = None
     sex_fallback_source: str = "PanCan"
     remove_gdc_filter_flags: Sequence[str] = ()
+    maf_name: str | None = None
     refresh: Sequence[str] = field(default_factory=tuple)
 
     def __post_init__(self):
@@ -136,6 +141,8 @@ class Cohort:
     @property
     def maf_path(self):
         """Path of the merged MAF."""
+        if self.maf_name is not None:
+            return os.path.join(self.out_dir, self.maf_name)
         return self.path(f"{self.spec.name}.maf")
 
     @property
@@ -424,6 +431,7 @@ class Cohort:
             download_check=self._download_check(),
             sample_qc=sample_qc,
             extra_steps=extra_steps,
+            spec=self.spec,
         )
         table.to_csv(self.path("case_attrition.tsv"), sep="\t", index=False)
         return table
@@ -451,7 +459,7 @@ class Cohort:
         selected, dropped = self.selection()
         out = {
             "maf_files_summary": reports.summarize_maf_files(
-                self.name, self.cases(), self.maf_files()
+                self.name, self.cases(), self.maf_files(), spec=self.spec
             ),
             "duplicates_summary": reports.summarize_duplicates(
                 self.name, self.duplicates()

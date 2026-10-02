@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from gdc2maf import WXS_ENSEMBLE_MAF
-from gdc2maf.attrition import STEP_MAF, STEP_SEX
+from gdc2maf.attrition import STEP_SEX, maf_step
 from gdc2maf.cases import fetch_cases, fill_sex_from_table
 
 
@@ -50,7 +50,7 @@ def test_a_sex_criterion_excludes_the_others_and_the_unknowns(no_network, tmp_pa
 def test_cases_without_a_matching_file_are_excluded_by_the_spec(no_network, tmp_path):
     cases = fetch_cases("Test", ["TCGA-TEST"], str(tmp_path), sex_at_birth=None)
     row = cases.set_index("case_id").loc["c4"]
-    assert row["exclusion_step"] == STEP_MAF
+    assert row["exclusion_step"] == maf_step(WXS_ENSEMBLE_MAF)
     assert row["exclusion_reason"] == f"no {WXS_ENSEMBLE_MAF.title}"
 
 

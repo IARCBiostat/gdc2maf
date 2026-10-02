@@ -12,20 +12,21 @@ import pandas as pd
 
 from .attrition import (
     STEP_DOWNLOAD,
-    STEP_MAF,
     STEP_MAF_FILES,
     STEP_MERGE,
     STEP_PROJECT,
     STEP_SEX,
     exclude_cases,
+    maf_step,
 )
+from .spec import WXS_ENSEMBLE_MAF
 from .files import DUPLICATE_KINDS
 from .selection import SELECTION_KEYS
 
 logger = logging.getLogger(__name__)
 
 
-def summarize_maf_files(cohort_name, cases, maf_files):
+def summarize_maf_files(cohort_name, cases, maf_files, spec=WXS_ENSEMBLE_MAF):
     """Summarise a cohort's MAF file listing for a cross-cohort report.
 
     Parameters
@@ -48,7 +49,10 @@ def summarize_maf_files(cohort_name, cases, maf_files):
     tumor_analyte = maf_files["tumor_aliquot_barcode"].str.split("-").str[4].str[-1]
     # cases meeting the cohort definition (project + sex), with or without a MAF
     n_cohort = int(
-        (cases["exclusion_step"].isna() | (cases["exclusion_step"] == STEP_MAF)).sum()
+        (
+            cases["exclusion_step"].isna()
+            | (cases["exclusion_step"] == maf_step(spec))
+        ).sum()
     )
 
     summary = {
@@ -165,7 +169,13 @@ def summarize_duplicates(cohort_name, duplicates):
 
 
 def summarize_attrition(
-    cohort_name, cases, maf_files, download_check=None, sample_qc=None, extra_steps=()
+    cohort_name,
+    cases,
+    maf_files,
+    download_check=None,
+    sample_qc=None,
+    extra_steps=(),
+    spec=WXS_ENSEMBLE_MAF,
 ):
     """Count the cases lost at each pipeline step, by reason.
 
@@ -207,7 +217,7 @@ def summarize_attrition(
         STEP_MAF_FILES,
         "no MAF file returned by /files",
     )
-    steps = [STEP_SEX, STEP_MAF, STEP_MAF_FILES]
+    steps = [STEP_SEX, maf_step(spec), STEP_MAF_FILES]
     if download_check is not None:
         failed = download_check[download_check["status"] != "ok"].set_index("case_id")[
             "status"

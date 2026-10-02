@@ -143,3 +143,20 @@ def test_superseded_copies_can_be_turned_off(tmp_path):
     result = write_if_changed(str(path), "new\n", keep_superseded=False)
     assert result["superseded"] is None
     assert list(p.name for p in tmp_path.iterdir()) == ["record.txt"]
+
+
+def test_logging_follows_a_stdout_replaced_after_import(tmp_path, monkeypatch):
+    # configure_logging must resolve sys.stdout when called, not at import
+    import io
+    import logging
+
+    from gdc2maf.provenance import configure_logging
+
+    replacement = io.StringIO()
+    monkeypatch.setattr("sys.stdout", replacement)
+    configure_logging()
+    try:
+        logging.getLogger("gdc2maf.test").info("hello")
+        assert "hello" in replacement.getvalue()
+    finally:
+        configure_logging(stream=None)

@@ -2,7 +2,8 @@
 
 import pandas as pd
 
-from gdc2maf.attrition import STEP_MAF, STEP_MERGE, STEP_SEX, exclude_cases
+from gdc2maf.attrition import STEP_MERGE, STEP_SEX, exclude_cases, maf_step
+from gdc2maf import WXS_ENSEMBLE_MAF
 from gdc2maf.reports import summarize_attrition, summary_table
 
 
@@ -22,7 +23,8 @@ def cases_table():
         cases, cases["sex_at_birth"] != "male", STEP_SEX, "sex_at_birth is female"
     )
     cases = exclude_cases(
-        cases, ~cases["has_maf"], STEP_MAF, "no open WXS ensemble MAF"
+        cases, ~cases["has_maf"], maf_step(WXS_ENSEMBLE_MAF),
+        f"no {WXS_ENSEMBLE_MAF.title}"
     )
     cases["included"] = cases["exclusion_step"].isna()
     return cases

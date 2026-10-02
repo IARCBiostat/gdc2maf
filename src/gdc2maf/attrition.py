@@ -15,10 +15,27 @@ import pandas as pd
 #: Attrition step labels, in pipeline order.
 STEP_PROJECT = "1. GDC project(s)"
 STEP_SEX = "2. sex at birth"
-STEP_MAF = "3. matching MAF file"
+# Step 3 has no constant: its label names the file kind the case had to have,
+# so that an attrition table says which MAF was looked for. See maf_step().
 STEP_MAF_FILES = "4. MAF file listing"
 STEP_DOWNLOAD = "5. download (size + md5 check)"
 STEP_MERGE = "6. merged MAF"
+
+
+def maf_step(spec):
+    """Return step 3's label for ``spec``, e.g. ``"3. open WXS ensemble MAF"``.
+
+    Parameters
+    ----------
+    spec : gdc2maf.spec.FileSpec
+        The file kind a case is required to have.
+
+    Returns
+    -------
+    str
+        The attrition step label.
+    """
+    return f"3. {spec.title}"
 
 
 def exclude_cases(cases, mask, step, reason):

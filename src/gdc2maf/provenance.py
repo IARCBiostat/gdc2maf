@@ -23,9 +23,14 @@ DEFAULT_PACKAGES = ["gdc2maf", "pandas", "numpy", "requests"]
 
 PLAIN_FORMAT = "%(message)s"
 
+#: Sentinel for "whatever ``sys.stdout`` is when the call is made". A plain
+#: ``stream=sys.stdout`` default would capture the stdout in place at import
+#: time and so miss a later :func:`tee_stdout`.
+USE_STDOUT = object()
+
 
 def configure_logging(
-    log_path=None, level=logging.INFO, stream=sys.stdout, fmt=PLAIN_FORMAT, mode="w"
+    log_path=None, level=logging.INFO, stream=USE_STDOUT, fmt=PLAIN_FORMAT, mode="w"
 ):
     """Send the package's log messages to ``stream`` and optionally to a file.
 
@@ -39,8 +44,10 @@ def configure_logging(
         File to write the log to. ``None`` logs to ``stream`` only.
     level : int, optional
         Logging level for the package's messages.
-    stream : file object or None, optional
-        Stream to log to; ``None`` logs to the file only.
+    stream : file object, None or USE_STDOUT, optional
+        Stream to log to. The default resolves to ``sys.stdout`` as it is at
+        the time of the call, so logging follows a :func:`tee_stdout` installed
+        beforehand. ``None`` logs to the file only.
     fmt : str, optional
         Logging format. The default prints the message alone, so the log reads
         like the pipeline's own output.
@@ -59,6 +66,9 @@ def configure_logging(
     ]:
         package_logger.removeHandler(handler)
         handler.close()
+
+    if stream is USE_STDOUT:
+        stream = sys.stdout
 
     formatter = logging.Formatter(fmt)
     handlers = []

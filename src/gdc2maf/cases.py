@@ -18,7 +18,7 @@ from datetime import date
 import pandas as pd
 
 from .api import cases_with_files, gdc_cohort_cases, gdc_data_release
-from .attrition import STEP_MAF, STEP_SEX, exclude_cases
+from .attrition import STEP_SEX, exclude_cases, maf_step
 from .spec import WXS_ENSEMBLE_MAF
 
 logger = logging.getLogger(__name__)
@@ -158,7 +158,9 @@ def fetch_cases(
             STEP_SEX,
             ("sex_at_birth is " + cases["sex_at_birth"]).fillna(missing_sex),
         )
-    cases = exclude_cases(cases, ~cases["has_maf"], STEP_MAF, f"no {spec.title}")
+    cases = exclude_cases(
+        cases, ~cases["has_maf"], maf_step(spec), f"no {spec.title}"
+    )
     cases["included"] = cases["exclusion_step"].isna()
 
     os.makedirs(out_dir, exist_ok=True)

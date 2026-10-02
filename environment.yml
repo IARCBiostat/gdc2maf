@@ -1,0 +1,19 @@
+# Conda environment for gdc2maf.
+#
+#   conda env create -f environment.yml
+#   conda activate gdc2maf
+#   pip install -e .          # the package itself, from a clone
+#
+# Python 3.10 or newer is required. The pinned minor version is what gdc2maf is
+# developed and tested on; the dependencies come from conda-forge so that
+# pandas and numpy are the compiled builds rather than wheels.
+name: gdc2maf
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pandas>=1.5
+  - numpy>=1.23
+  - requests>=2.28
+  # tests
+  - pytest>=7
