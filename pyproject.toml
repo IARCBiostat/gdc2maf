@@ -26,6 +26,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
+docs = [
+    "sphinx>=7",
+    "myst-parser>=2",
+    "sphinx-argparse>=0.4",
+    "sphinx-design>=0.5",
+    "furo>=2024.1.29",
+]
 
 [project.scripts]
 gdc2maf = "gdc2maf.cli:main"

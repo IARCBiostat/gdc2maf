@@ -363,3 +363,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+docs/reference/generated
+
+docs/_build/

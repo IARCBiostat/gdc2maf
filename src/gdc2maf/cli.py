@@ -50,11 +50,11 @@ FINDING_PROJECTS = (
     "  Mind that a primary site is not a disease: that lung query returns 28\n"
     "  projects, TCGA-MESO (mesothelioma) and TCGA-SKCM (melanoma) among them,\n"
     "  because each holds some case recorded at a lung site. Pick the projects\n"
-    "  for the disease you mean and pass each with its own --project. TCGA lung\n"
+    "  for the disease you mean and pass them all to --project. TCGA lung\n"
     "  cancer, for instance, is TCGA-LUAD (adenocarcinoma) and TCGA-LUSC\n"
     "  (squamous cell):\n"
     "\n"
-    "       gdc2maf maf --project TCGA-LUAD --project TCGA-LUSC --name Lung\n"
+    "       gdc2maf maf --project TCGA-LUAD TCGA-LUSC --name Lung\n"
 )
 
 
@@ -71,23 +71,27 @@ def add_cohort_arguments(parser):
     group = parser.add_argument_group("cohort")
     group.add_argument(
         "--project",
-        action="append",
+        action="extend",
+        nargs="+",
         required=True,
         metavar="ID",
-        help="GDC project ID, e.g. TCGA-LUAD; repeat for several (--project "
-        "TCGA-LUAD --project TCGA-LUSC). Every case of these projects is "
+        help="GDC project ID, e.g. TCGA-LUAD. Several at once (--project "
+        "TCGA-LUAD TCGA-LUSC) or the flag repeated (--project TCGA-LUAD "
+        "--project TCGA-LUSC); both add up. Every case of these projects is "
         "fetched and reported, so the cohort's attrition starts from the whole "
         "project. See 'finding project IDs' at the end of this help for how to "
         f"look an ID up ({GDC_PROJECTS_PORTAL})",
     )
     group.add_argument(
         "--sex-at-birth",
-        action="append",
+        action="extend",
+        nargs="+",
         choices=["male", "female"],
         metavar="SEX",
-        help="keep only cases with this demographic.sex_at_birth (male, female); "
-        "repeat to keep several. Default: every sex is kept, including cases "
-        "whose sex the GDC does not record",
+        help="keep only cases with this demographic.sex_at_birth; several at "
+        "once (--sex-at-birth male female) or the flag repeated. Choices: male, "
+        "female. Default: every sex is kept, including cases whose sex the GDC "
+        "does not record",
     )
     group.add_argument(
         "--name",
@@ -126,12 +130,14 @@ def add_cohort_arguments(parser):
     )
     group.add_argument(
         "--refresh",
-        action="append",
+        action="extend",
+        nargs="+",
         choices=[*CACHED_STEPS, "all"],
         default=[],
         metavar="STEP",
-        help="recompute this step instead of reusing its cached "
-        "output; repeatable. Choices: " + ", ".join([*CACHED_STEPS, "all"]),
+        help="recompute this step instead of reusing its cached output; several "
+        "at once (--refresh files download) or the flag repeated. Choices: "
+        + ", ".join([*CACHED_STEPS, "all"]),
     )
     group.add_argument(
         "--no-log",
@@ -190,12 +196,14 @@ def add_merge_arguments(parser):
     group = parser.add_argument_group("merge")
     group.add_argument(
         "--remove-gdc-filter-flag",
-        action="append",
+        action="extend",
+        nargs="+",
         default=[],
         metavar="FLAG",
-        help="drop variants carrying this GDC_FILTER flag (e.g. NonExonic, "
-        "gdc_pon, common_in_gnomAD); repeatable. Default: keep every flagged "
-        "variant and report the counts",
+        help="drop variants carrying this GDC_FILTER flag; several at once "
+        "(--remove-gdc-filter-flag NonExonic gdc_pon) or the flag repeated. "
+        "Known flags: NonExonic, gdc_pon, common_in_gnomAD. Default: keep "
+        "every flagged variant and report the counts",
     )
 
 

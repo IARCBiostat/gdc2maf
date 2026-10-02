@@ -1,16 +1,19 @@
-# Runtime dependencies of gdc2maf, matching [project.dependencies] in
+# Runtime dependencies of gdc2maf, mirroring [project.dependencies] in
 # pyproject.toml. Installing the package itself (pip install -e .) pulls these
 # in on its own; this file is here for environments that install dependencies
-# separately, such as a Docker layer or a locked CI job.
+# separately, such as a Docker layer or a locked CI job:
 #
 #   pip install -r requirements.txt
 #   pip install -e . --no-deps
 #
 # The lower bounds are the oldest versions the code is written against; it is
 # developed and tested on pandas 3.0, numpy 2.5 and requests 2.34.
+#
+# Nothing else belongs here. The test and documentation dependencies are
+# declared once, as extras in pyproject.toml:
+#
+#   pip install -e '.[dev]'     # pytest
+#   pip install -e '.[docs]'    # sphinx and this site's extensions
 pandas>=1.5
 numpy>=1.23
 requests>=2.28
-
-# Development extras (tests). Also available as: pip install -e '.[dev]'
-pytest>=7

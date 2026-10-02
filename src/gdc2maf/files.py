@@ -59,6 +59,9 @@ def list_maf_files(cohort_name, cases, out_dir, spec=WXS_ENSEMBLE_MAF):
     return files
 
 
+#: How the MAF files of one patient can differ, as ``{flag: description}``.
+#: The flags are not mutually exclusive: a patient can have two tumour vials
+#: *and* two normals.
 DUPLICATE_KINDS = {
     "tumour_sample_type_differs": (
         "Tumour sample types differ (e.g. primary vs metastatic)"

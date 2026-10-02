@@ -4,6 +4,8 @@ import importlib
 import sys
 from pathlib import Path
 
+import pytest
+
 import gdc2maf
 
 
@@ -39,9 +41,11 @@ def test_every_module_imports_cleanly():
 
 
 def read_pyproject_dependencies():
-    """Return the distribution names in [project.dependencies]."""
+    """Return the distribution names in [project.dependencies], and the repo root."""
     import re
-    import tomllib
+
+    # tomllib is 3.11+; the package supports 3.10, so skip rather than fail there
+    tomllib = pytest.importorskip("tomllib")
 
     root = Path(gdc2maf.__file__).parent.parent.parent
     with open(root / "pyproject.toml", "rb") as f:
@@ -49,11 +53,24 @@ def read_pyproject_dependencies():
     return {re.split(r"[<>=!~\s]", d)[0] for d in deps}, root
 
 
-def test_requirements_txt_covers_every_runtime_dependency():
+def requirement_lines(root):
+    """Return the non-comment, non-blank lines of requirements.txt."""
+    text = (root / "requirements.txt").read_text()
+    return [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+
+def test_requirements_txt_is_exactly_the_runtime_dependencies():
+    # It must not grow a second copy of the dev or docs extras: those are
+    # declared once in pyproject.toml, and a copy here would drift.
     deps, root = read_pyproject_dependencies()
-    listed = (root / "requirements.txt").read_text()
-    missing = [d for d in deps if d not in listed]
-    assert not missing, f"missing from requirements.txt: {missing}"
+    import re
+
+    listed = {re.split(r"[<>=!~\s]", line)[0] for line in requirement_lines(root)}
+    assert listed == deps, f"requirements.txt lists {listed}, pyproject lists {deps}"
 
 
 def test_conda_environment_covers_every_runtime_dependency():
@@ -61,3 +78,25 @@ def test_conda_environment_covers_every_runtime_dependency():
     listed = (root / "environment.yml").read_text()
     missing = [d for d in deps if d not in listed]
     assert not missing, f"missing from environment.yml: {missing}"
+
+
+
+README_MARKERS = ["intro-start", "intro-end", "quickstart-start", "quickstart-end"]
+
+
+def test_readme_keeps_the_markers_the_docs_home_page_includes():
+    # docs/index.md pulls these slices out of the README with MyST's include
+    # directive, so the home page is never a second copy of the text. Renaming
+    # or dropping a marker would silently empty the home page.
+    root = Path(gdc2maf.__file__).parent.parent.parent
+    readme = (root / "README.md").read_text()
+    for marker in README_MARKERS:
+        assert f"<!-- docs-include: {marker} -->" in readme, marker
+
+
+def test_docs_home_page_includes_the_readme_rather_than_repeating_it():
+    root = Path(gdc2maf.__file__).parent.parent.parent
+    index = (root / "docs" / "index.md").read_text()
+    assert "{include} ../README.md" in index
+    for marker in README_MARKERS:
+        assert marker in index, marker

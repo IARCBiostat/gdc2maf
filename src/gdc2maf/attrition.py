@@ -23,7 +23,10 @@ STEP_MERGE = "6. merged MAF"
 
 
 def maf_step(spec):
-    """Return step 3's label for ``spec``, e.g. ``"3. open WXS ensemble MAF"``.
+    """Return step 3's attrition label for the given file spec.
+
+    For the default spec the label is ``"3. open WXS ensemble MAF"``, so an
+    attrition table says which MAF a case was required to have.
 
     Parameters
     ----------

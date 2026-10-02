@@ -20,6 +20,7 @@ from .api import gdc_in, gdc_query
 logger = logging.getLogger(__name__)
 
 
+#: ``demographic`` fields fetched for each case.
 DEMOGRAPHIC_FIELDS = [
     "sex_at_birth",
     "race",

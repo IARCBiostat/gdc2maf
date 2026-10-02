@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Allow one deployment at a time; cancel superseded runs on a branch, but never
+# cancel a run on main that may be mid-deploy.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: tests (python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install the package and test extras
+        run: python -m pip install --upgrade pip && python -m pip install -e '.[dev]'
+
+      - name: Run the tests
+        # The suite needs no network and no GDC access.
+        run: python -m pytest -q
+
+      - name: Check the console script is installed and self-documenting
+        run: |
+          gdc2maf --version
+          gdc2maf --help
+          gdc2maf maf --help
+
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install the package and docs extras
+        run: python -m pip install --upgrade pip && python -m pip install -e '.[docs]'
+
+      - name: Build the documentation
+        # -W turns warnings into errors, so a broken cross-reference or a
+        # malformed docstring fails the build rather than shipping quietly.
+        run: python -m sphinx -b html -W --keep-going docs docs/_build/html
+
+      - name: Upload the built site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_build/html
+
+  deploy:
+    name: deploy to GitHub Pages
+    # Only from main, and only once the tests and the docs build have passed.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [tests, docs]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

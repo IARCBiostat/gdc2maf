@@ -25,9 +25,10 @@ NATIVE_DNA_ANALYTES = ["D"]
 # can carry tumour cells, which hides true somatic variants.
 NORMAL_CODE_RANK = {10: 0, 11: 1}
 
-# Ordered selection keys: (column, ascending, label). Files of a patient are
-# sorted by these keys and the first file is kept. The last two keys make the
-# order total, so the choice never depends on input row order.
+#: Ordered selection keys, as ``(column, ascending, label)``. A patient's files
+#: are sorted by these keys and the first is kept; the label is the reason
+#: recorded for every file the key decided against. The last two keys make the
+#: order total, so the choice never depends on input row order.
 SELECTION_KEYS = [
     ("rank_primary", True, "non-primary tumour (primary available)"),
     ("rank_ffpe", True, "FFPE tumour (non-FFPE available)"),

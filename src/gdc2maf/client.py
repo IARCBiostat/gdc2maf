@@ -5,6 +5,13 @@ there, the release is downloaded from the GDC and md5-checked against
 :data:`PINNED_RELEASES`, so a run never silently uses an unverified binary.
 Pin a version for reproducible results; ``"latest"`` resolves the newest
 release from the GDC download page.
+
+The GDC publishes prebuilt binaries for Linux, macOS and Windows only
+(:data:`GDC_PLATFORM`), and those are compiled bundles, so the Linux build does
+not run on other Unix systems. That limits what can be *downloaded*, not where
+gdc2maf runs: gdc-client is itself a Python program, so on any other platform
+install or build it yourself and pass ``gdc_client_path`` to
+:func:`ensure_gdc_client`, which skips the platform check entirely.
 """
 
 import json
@@ -25,9 +32,10 @@ logger = logging.getLogger(__name__)
 GDC_TOOL_PAGE = "https://gdc.cancer.gov/access-data/gdc-data-transfer-tool"
 GDC_FILE_URL = "https://gdc.cancer.gov/system/files/public/file"
 
-# Pinned releases: the version used for the published results.
-# (zip name, md5 of the zip as published on GDC_TOOL_PAGE, md5 of the executable
-# inside it; None where not checked).
+#: Releases this package will install, keyed as ``{version: {system: entry}}``.
+#: Each entry is a tuple of the zip name, the md5 of that zip as published on
+#: the GDC download page, and the md5 of the executable inside it. The last of
+#: those is ``None`` where it is not checked, which is every platform but Linux.
 PINNED_RELEASES = {
     "2.3": {
         "Linux": (
@@ -47,7 +55,9 @@ PINNED_RELEASES = {
         ),
     },
 }
-# Platform label used in GDC zip names
+#: Platform label used in the GDC zip names, keyed by ``platform.system()``.
+#: A system absent from this mapping has no published build, so it cannot be
+#: downloaded; pass your own client instead.
 GDC_PLATFORM = {"Linux": "Ubuntu", "Darwin": "OSX", "Windows": "Windows"}
 
 
@@ -145,7 +155,13 @@ def install_gdc_client(version="2.3", install_dir="tools/gdc-client"):
     """
     system = platform.system()
     if system not in GDC_PLATFORM:
-        raise ValueError(f"gdc-client is not distributed for {system}")
+        raise ValueError(
+            f"the GDC publishes no gdc-client build for {system} "
+            f"(only {', '.join(GDC_PLATFORM)}). gdc-client is a Python program, so "
+            "install or build one for this platform yourself and pass it as "
+            "gdc_client_path (on the command line, --gdc-client PATH); the platform "
+            "check applies only to downloading a prebuilt release."
+        )
 
     if version == "latest":
         version, zip_name, zip_md5 = latest_gdc_client_release(system)

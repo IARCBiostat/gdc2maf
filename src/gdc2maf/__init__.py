@@ -23,7 +23,7 @@ The short version::
 
 or, equivalently, from a shell::
 
-    gdc2maf maf --project TCGA-LUAD --project TCGA-LUSC --sex-at-birth male
+    gdc2maf maf --project TCGA-LUAD TCGA-LUSC --sex-at-birth male
                 --name Lung_MALE --out out
 
 Signature extraction, plotting and other downstream analysis are deliberately
