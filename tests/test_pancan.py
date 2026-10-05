@@ -58,7 +58,7 @@ def test_an_existing_file_with_the_right_md5_is_not_downloaded(tmp_path, monkeyp
     def fail(*a, **k):
         raise AssertionError("should not download a valid existing file")
 
-    monkeypatch.setattr("urllib.request.urlretrieve", fail)
+    monkeypatch.setattr("gdc2maf.pancan._download", fail)
     record = fetch_pancan_file(name, str(tmp_path))
     assert record["source"] == "existing"
     assert record["md5"] == record["expected_md5"]
@@ -71,7 +71,7 @@ def test_a_changed_upstream_file_fails_loudly(tmp_path, monkeypatch):
         with open(dest, "wb") as f:
             f.write(b"not the pinned file")
 
-    monkeypatch.setattr("urllib.request.urlretrieve", serve_something_else)
+    monkeypatch.setattr("gdc2maf.pancan._download", serve_something_else)
     with pytest.raises(RuntimeError, match="md5 mismatch"):
         fetch_pancan_file("clinical", str(tmp_path))
     assert (tmp_path / file_name).exists()  # kept, so it can be inspected
@@ -79,7 +79,7 @@ def test_a_changed_upstream_file_fails_loudly(tmp_path, monkeypatch):
 
 def test_the_md5_check_can_be_waived(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        "urllib.request.urlretrieve",
+        "gdc2maf.pancan._download",
         lambda url, dest: open(dest, "wb").write(b"whatever"),
     )
     record = fetch_pancan_file("clinical", str(tmp_path), check_md5=False)
@@ -116,3 +116,35 @@ def test_flagging_can_be_narrowed_to_one_platform(quality_file):
     annotations = load_quality_annotations(str(quality_file))
     assert do_not_use_patients(annotations, platform="WXS") == {"TCGA-AA-0002"}
     assert do_not_use_patients(annotations, platform="SNP6") == {"TCGA-AA-0003"}
+
+
+def test_the_download_is_streamed_with_requests(tmp_path, monkeypatch):
+    """The GDC closes the connection on urllib's default user agent."""
+    import gdc2maf.pancan as pancan
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, chunk_size):
+            yield b"first "
+            yield b"second"
+
+    calls = {}
+
+    def fake_get(url, **kwargs):
+        calls.update(url=url, **kwargs)
+        return FakeResponse()
+
+    monkeypatch.setattr(pancan.requests, "get", fake_get)
+    path = tmp_path / "out.tsv"
+    pancan._download("https://example/data/x", str(path))
+    assert path.read_bytes() == b"first second"
+    assert calls["stream"] is True
+    assert calls["timeout"] == 300

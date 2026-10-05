@@ -28,9 +28,9 @@ https://gdc.cancer.gov/about-data/publications/pancanatlas
 import json
 import logging
 import os
-import urllib.request
 
 import pandas as pd
+import requests
 
 from .download import file_md5
 
@@ -63,6 +63,21 @@ PANCAN_FILES = {
 DO_NOT_USE_COLUMN = "Do_not_use"
 PATIENT_COLUMN = "patient_barcode"
 ALIQUOT_COLUMN = "aliquot_barcode"
+
+
+def _download(url, path, chunk_size=1 << 20):
+    """Stream ``url`` to ``path``.
+
+    ``requests``, like the rest of the package: the GDC closes the connection
+    on ``urllib``'s default user agent, and these files are tens of megabytes,
+    so they are written in chunks rather than held in memory.
+    """
+    with requests.get(url, stream=True, timeout=300) as r:
+        r.raise_for_status()
+        with open(path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=chunk_size):
+                f.write(chunk)
+    return path
 
 
 def fetch_pancan_file(name, dest_dir, refresh=False, check_md5=True):
@@ -117,7 +132,7 @@ def fetch_pancan_file(name, dest_dir, refresh=False, check_md5=True):
     if source == "downloaded":
         logger.info(f"PanCanAtlas {name} ({description})")
         logger.info(f"  downloading {url} -> {path}")
-        urllib.request.urlretrieve(url, path)
+        _download(url, path)
 
     observed = file_md5(path)
     if check_md5 and observed != expected_md5:
@@ -160,7 +175,11 @@ def fetch_pancan_quality_annotations(dest_dir, **kwargs):
 
 
 def write_pancan_record(record, path):
-    """Write a :func:`fetch_pancan_file` record as JSON, for provenance."""
+    """Write a :func:`~gdc2maf.pancan.fetch_pancan_file` record as JSON.
+
+    The record is the provenance of a downloaded supplement: its UUID, URL,
+    md5 and size.
+    """
     with open(path, "w") as f:
         json.dump(record, f, indent=2)
     return path
