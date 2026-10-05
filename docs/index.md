@@ -39,8 +39,9 @@
     pipeline built on the API.
 * - {doc}`reference/index`
   - Every class and function, generated from the docstrings.
-* - {doc}`design`
-  - Why the package behaves as it does: what it refuses, what it only flags.
+* - {doc}`decisions`
+  - Why each step works the way it does: the alternatives considered, and the
+    reason each was or was not taken.
 :::
 
 ## The API at a glance
@@ -122,5 +123,5 @@ tutorials/index
 :caption: Reference
 
 reference/index
-design
+decisions
 ```
