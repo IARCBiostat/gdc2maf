@@ -118,6 +118,15 @@ matrices come out silently wrong rather than empty.
 **`input/` should hold nothing else.** MatrixGenerator reads every file in that
 folder, so if you rerun with a different cohort name, clear it first.
 
+**The merged MAF has already had the flagged patients removed.** `cohort.run()`
+leaves out the patients the GDC's curation or the PanCanAtlas `Do_not_use` flag
+names — 56 of 596 for this cohort — so the matrices and the extracted signatures
+never see them, and `Lung_MALE_case_attrition.tsv` reports them at step 6.
+`exclude_flagged=False` keeps them. Either way the choice belongs in the
+write-up of the analysis, so read {doc}`../quality` once before running the
+extraction; changing it afterwards means re-merging (`refresh=["merge"]`) and
+rerunning SigProfiler on new matrices.
+
 **`read_merged_maf(usecols=...)` reads only what you need.** A cohort's merged MAF
 runs to hundreds of MB; this pulls back the 16 columns instead of all of them.
 
@@ -128,6 +137,8 @@ out/Lung_MALE/
 ├── Lung_MALE_cases.tsv                     gdc2maf
 ├── Lung_MALE_files_selected.tsv
 ├── Lung_MALE_download_check.tsv
+├── Lung_MALE_gdc_annotations.tsv
+├── Lung_MALE_quality_flags.tsv
 ├── Lung_MALE_wxs_ensemble_maf.maf
 ├── Lung_MALE_sample_qc.tsv
 ├── Lung_MALE_case_attrition.tsv
@@ -180,3 +191,22 @@ for those in the same attrition table as the GDC steps, pass them to
 {func}`~gdc2maf.reports.summarize_attrition` as an extra step — it takes
 `(label, case_ids_lost, reason)` triples, so a step gdc2maf knows nothing about
 still appears in the report.
+
+gdc2maf's own steps are numbered 1 to 7, so a downstream step starts at 8:
+
+```python
+STEP_SIGPROFILER_INPUT = "8. SigProfiler input"
+
+with_variants = sample_qc[sample_qc["has_variants"].astype(bool)]
+not_in_input = with_variants.loc[
+    ~with_variants["Tumor_Sample_Barcode"].isin(
+        sigprofiler_input["Tumor_Sample_Barcode"]
+    ),
+    "case_id",
+]
+attrition = cohort.attrition(
+    extra_steps=[
+        (STEP_SIGPROFILER_INPUT, not_in_input, "no variants of the kept types")
+    ]
+)
+```

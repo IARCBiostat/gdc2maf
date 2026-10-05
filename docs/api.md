@@ -29,7 +29,8 @@ cases = cohort.cases()  # GDC query, or the cached TSV
 maf_files = cohort.maf_files()  # one row per candidate file, nothing downloaded
 selected, dropped = cohort.selection()  # one file per patient + why the others went
 check = cohort.download(n_clients=8)  # gdc-client, then size + md5 on every file
-maf, sample_qc, qc = cohort.merged_maf()
+flags = cohort.quality_flags()  # GDC curation + the PanCanAtlas Do_not_use flag
+maf, sample_qc, qc = cohort.merged_maf()  # the flagged patients are left out
 
 print(cohort.attrition().to_string(index=False))
 ```
@@ -38,6 +39,11 @@ print(cohort.attrition().to_string(index=False))
 a dict — that is the form [the quick start](index.md#quick-start) uses. To work from a
 merged MAF that is already on disk without loading all of it, use
 {meth}`cohort.read_merged_maf(usecols=[...]) <gdc2maf.cohort.Cohort.read_merged_maf>`.
+
+The merged MAF excludes the patients {meth}`~gdc2maf.cohort.Cohort.quality_flags` lists,
+and {meth}`~gdc2maf.cohort.Cohort.attrition` reports them at step 6. Pass
+`exclude_flagged=False` to keep them; {doc}`quality` explains the choice and what it
+costs on a real cohort.
 
 ## Choosing the cases
 

@@ -24,6 +24,8 @@ way to reach them — `from gdc2maf import Cohort`.
    gdc2maf.download
    gdc2maf.maf
    gdc2maf.attrition
+   gdc2maf.annotations
+   gdc2maf.pancan
    gdc2maf.reports
    gdc2maf.record
    gdc2maf.provenance
@@ -109,6 +111,26 @@ way to reach them — `from gdc2maf import Cohort`.
    gdc2maf.reports.summarize_selection
    gdc2maf.reports.summarize_download
    gdc2maf.reports.summary_table
+```
+
+### Quality flags: GDC curation and the PanCanAtlas
+
+```{eval-rst}
+.. autosummary::
+   :nosignatures:
+
+   gdc2maf.annotations.fetch_annotations
+   gdc2maf.annotations.exclusion_flags
+   gdc2maf.annotations.summarize_annotations
+   gdc2maf.annotations.EXCLUSION_CLASSIFICATIONS
+   gdc2maf.annotations.EXCLUSION_CATEGORIES
+   gdc2maf.pancan.fetch_pancan_file
+   gdc2maf.pancan.fetch_pancan_clinical
+   gdc2maf.pancan.fetch_pancan_quality_annotations
+   gdc2maf.pancan.load_quality_annotations
+   gdc2maf.pancan.do_not_use_patients
+   gdc2maf.pancan.write_pancan_record
+   gdc2maf.pancan.PANCAN_FILES
 ```
 
 ### The download record

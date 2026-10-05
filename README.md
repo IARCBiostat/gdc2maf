@@ -6,8 +6,10 @@ From a GDC cohort specification to one verified, merged MAF.
 Say which GDC project(s) and which cases you want. `gdc2maf` resolves the cohort against
 the GDC API, lists the matching open-access MAF files, picks one file per patient,
 installs an md5-verified `gdc-client`, downloads and checks every file, and merges them
-into a single MAF with per-sample QC — accounting for every patient lost along the way,
-with the reason. Downloading needs no GDC token: only open-access files are handled.
+into a single MAF with per-sample QC — leaving out the patients the GDC's own curation or
+the TCGA PanCanAtlas `Do_not_use` flag calls unusable, and accounting for every patient
+lost along the way, with the reason. Downloading needs no GDC token: only open-access
+files are handled.
 <!-- docs-include: intro-end -->
 
 **Full documentation — the option reference, the API reference and worked tutorials
@@ -38,8 +40,8 @@ spans more than one project — TCGA lung cancer is `TCGA-LUAD` *and* `TCGA-LUSC
 [Cohorts and file specs](https://iarcbiostat.github.io/gdc2maf/cohorts.html#finding-the-project-ids)
 shows how to look the right ones up on the GDC portal or from its API.
 
-Writes `out/Lung_MALE/` (cases, file listing, selection, merged MAF, QC and an attrition
-table) and downloads into `downloads/`.
+Writes `out/Lung_MALE/` (cases, file listing, selection, quality flags, merged MAF, QC
+and an attrition table) and downloads into `downloads/`.
 
 **Python** — the same run, as an object:
 

@@ -27,10 +27,10 @@ print(result["attrition"].to_string(index=False))
 ```
 
 That resolves the cohort, lists its MAF files, keeps one per patient, installs an
-md5-checked `gdc-client`, downloads and verifies every file, merges them with QC,
-and writes every report and the plain-text download record. For this cohort it
-takes 1089 project cases down to an analysis set of 592, with a reason recorded
-for each of the 497 that did not make it.
+md5-checked `gdc-client`, checks the quality flags, downloads and verifies every
+file, merges them with QC, and writes every report and the plain-text download
+record. For this cohort it takes 1089 project cases down to an analysis set of
+537, with a reason recorded for each of the 552 that did not make it.
 
 `result` is a dict holding every table — `cases`, `maf_files`, `selected`,
 `dropped`, `download_check`, `sample_qc`, `attrition`, `summaries` — so nothing
@@ -152,7 +152,34 @@ Every file is checked by size and md5 against the GDC's own metadata, before and
 after the transfer. A rerun re-checks and downloads only what is missing or
 corrupt.
 
-### 6. Merge, with QC
+### 6. Check the quality flags
+
+Two lists say a patient's material may be unusable: the GDC's own curation
+annotations, and the PanCanAtlas `Do_not_use` flag. Both are consulted without
+any setup — the annotations come from the API, and the PanCanAtlas table is
+downloaded once into `pancan_dir`, md5-checked:
+
+```python
+print(cohort.quality_flags())
+```
+
+```text
+    submitter_id       source      reason
+0  TCGA-05-4382  PanCanAtlas  Do_not_use
+1  TCGA-05-4418  PanCanAtlas  Do_not_use
+...
+```
+
+56 of the 596 selected patients are flagged here, all by the PanCanAtlas. They
+are excluded by default: the next step leaves their files out of the merge, so
+they are absent from the MAF and from everything built on it. The table is saved
+as `Lung_MALE_quality_flags.tsv` either way.
+
+`--keep-flagged` (or `exclude_flagged=False`) keeps them and only reports the
+flags. {doc}`../quality` has the evidence behind the 56 and the case for each
+choice — worth reading once before you rely on either.
+
+### 7. Merge, with QC
 
 ```python
 maf, sample_qc, qc_summary = cohort.merged_maf()
@@ -174,7 +201,7 @@ print(cohort.samples_for_review())
 
 Whether to drop them is yours to decide, not the loader's.
 
-### 7. Read the attrition
+### 8. Read the attrition
 
 ```python
 print(cohort.attrition().drop(columns="cohort").to_string(index=False))
@@ -188,13 +215,19 @@ print(cohort.attrition().drop(columns="cohort").to_string(index=False))
       3. open WXS ensemble MAF                        no open WXS ensemble MAF         19          596
            4. MAF file listing                                               -          0          596
 5. download (size + md5 check)                                               -          0          596
-                 6. merged MAF         MAF has no variants (after GDC masking)          4          592
+              6. quality flags                          flagged by PanCanAtlas         56          540
+                 7. merged MAF         MAF has no variants (after GDC masking)          3          537
 ```
 
 Read it top to bottom: the cohort starts as every case of both projects and
 narrows one criterion at a time, each row naming what was lost and why. Steps
 that removed nothing are still shown, so the arithmetic is checkable rather than
 implied.
+
+Each patient is counted once, at the step that lost them: four patients have no
+variants after GDC masking, but one of them was already gone at step 6, so the
+merge row removes three. With `--keep-flagged` step 6 disappears and the merge
+row removes all four, ending at 592.
 
 Counts are from GDC Data Release 46.0; a later release will differ. Had you
 passed `sex_fallback_path` ({ref}`sex-criterion`), cases with no sex in the GDC

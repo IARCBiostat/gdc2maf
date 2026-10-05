@@ -14,7 +14,9 @@ Everything lands in `out_dir`, prefixed with the cohort name:
 | `<name>_manifest.txt` | gdc-client manifest of the selected files |
 | `<name>_download_check.tsv` | Size and md5 status of every selected file |
 | `<name>_gdc_client.json` | Which gdc-client binary ran, its version and md5 |
-| `<name>_<spec>.maf` | The merged MAF |
+| `<name>_gdc_annotations.tsv` | Every GDC annotation on the cohort's files, aliquots and cases |
+| `<name>_quality_flags.tsv` | Patients flagged by GDC curation or the PanCanAtlas `Do_not_use` flag, with the reason |
+| `<name>_<spec>.maf` | The merged MAF, with the flagged patients left out unless `--keep-flagged` |
 | `<name>_sample_qc.tsv` | Per-sample metrics and artefact flags |
 | `<name>_samples_for_review.tsv` | Samples flagged for manual review, with the evidence |
 | `<name>_case_attrition.tsv` | Cases lost per step, by reason |
@@ -56,4 +58,15 @@ Running the same command again does not redo the work:
   verification — the old record is first renamed to
   `<name>_download_record_superseded_<date>.txt`, so nothing is lost.
 - **Only `<name>_run.log` is overwritten**, since it describes the current run.
+
+One rerun does need `--refresh merge`: turning the quality-flag exclusion on (or off)
+after a cohort has already been merged. The merged MAF is cached, so it would otherwise
+be reused as it was built, with the excluded patients still in it. The run says so:
+
+```text
+WARNING  Lung_MALE: out/Lung_MALE/Lung_MALE_wxs_ensemble.maf was merged before these
+         patients were excluded and still contains 55 of them. Rerun with
+         refresh=['merge'] (--refresh merge) to rebuild it, or set
+         exclude_flagged=False (--keep-flagged).
+```
 

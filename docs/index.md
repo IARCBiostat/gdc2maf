@@ -31,6 +31,9 @@
   - What defines a cohort, and which GDC files count as its MAFs.
 * - {doc}`outputs`
   - Every file a run writes, and exactly what a rerun does and does not redo.
+* - {doc}`quality`
+  - The GDC's curation annotations and the PanCanAtlas `Do_not_use` flag: what
+    is checked, what is excluded by default, and when to keep it instead.
 * - {doc}`tutorials/index`
   - Worked examples: a first cohort end to end, and a full mutational-signature
     pipeline built on the API.
@@ -104,6 +107,7 @@ cli
 api
 cohorts
 outputs
+quality
 ```
 
 ```{toctree}
