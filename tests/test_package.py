@@ -126,7 +126,9 @@ def test_every_sphinx_static_path_exists():
     for paths in static_paths:
         for entry in paths:
             path = docs / entry
-            assert path.is_dir(), f"docs/conf.py html_static_path entry missing: {entry}"
+            assert path.is_dir(), (
+                f"docs/conf.py html_static_path entry missing: {entry}"
+            )
             assert any(path.iterdir()), (
                 f"docs/{entry} is empty, so git will not track it and the "
                 "docs build will warn on a fresh checkout"
