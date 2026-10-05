@@ -2,7 +2,13 @@
 
 import pandas as pd
 
-from gdc2maf.attrition import STEP_MERGE, STEP_SEX, exclude_cases, maf_step
+from gdc2maf.attrition import (
+    STEP_MERGE,
+    STEP_QUALITY_FLAGS,
+    STEP_SEX,
+    exclude_cases,
+    maf_step,
+)
 from gdc2maf import WXS_ENSEMBLE_MAF
 from gdc2maf.reports import summarize_attrition, summary_table
 
@@ -97,6 +103,57 @@ def test_sample_qc_losses_are_attributed_to_the_merge():
     table = summarize_attrition("Test", cases, maf_files, sample_qc=sample_qc)
     merge_rows = table[table["step"] == STEP_MERGE]
     assert merge_rows["n_removed"].sum() == 1
+
+
+def test_quality_flags_are_attributed_to_their_own_step():
+    cases = cases_table()
+    maf_files = pd.DataFrame({"case_id": ["c1", "c2"]})
+    flags = pd.DataFrame({
+        "submitter_id": ["p1", "p1"],
+        "source": ["PanCanAtlas", "GDC annotation"],
+        "reason": ["Do_not_use", "redaction / general"],
+    })
+    table = summarize_attrition("Test", cases, maf_files, quality_flags=flags)
+    rows = table[table["step"] == STEP_QUALITY_FLAGS]
+    assert rows["n_removed"].sum() == 1
+    # both sources named, once, in one reason
+    assert rows["reason"].tolist() == ["flagged by GDC annotation, PanCanAtlas"]
+
+
+def test_the_quality_step_comes_before_the_merge():
+    cases = cases_table()
+    maf_files = pd.DataFrame({"case_id": ["c1", "c2"]})
+    flags = pd.DataFrame({
+        "submitter_id": ["p1"], "source": ["PanCanAtlas"], "reason": ["Do_not_use"],
+    })
+    sample_qc = pd.DataFrame({
+        "case_id": ["c2"], "has_variants": [False],
+        "no_variants_reason": ["empty GDC MAF"],
+    })
+    table = summarize_attrition(
+        "Test", cases, maf_files, quality_flags=flags, sample_qc=sample_qc
+    )
+    steps = table["step"].tolist()
+    assert steps.index(STEP_QUALITY_FLAGS) < steps.index(STEP_MERGE)
+    # the flagged patient is gone before the merge, so the merge only sees c2
+    assert table.loc[table["step"] == STEP_MERGE, "n_remaining"].iloc[-1] == 0
+
+
+def test_a_patient_flagged_and_variant_less_is_counted_once():
+    cases = cases_table()
+    maf_files = pd.DataFrame({"case_id": ["c1", "c2"]})
+    flags = pd.DataFrame({
+        "submitter_id": ["p1"], "source": ["PanCanAtlas"], "reason": ["Do_not_use"],
+    })
+    sample_qc = pd.DataFrame({
+        "case_id": ["c1"], "has_variants": [False],
+        "no_variants_reason": ["empty GDC MAF"],
+    })
+    table = summarize_attrition(
+        "Test", cases, maf_files, quality_flags=flags, sample_qc=sample_qc
+    )
+    assert table.loc[table["step"] == STEP_QUALITY_FLAGS, "n_removed"].sum() == 1
+    assert table.loc[table["step"] == STEP_MERGE, "n_removed"].sum() == 0
 
 
 def test_summary_table_stacks_cohorts_side_by_side():

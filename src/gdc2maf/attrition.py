@@ -19,7 +19,11 @@ STEP_SEX = "2. sex at birth"
 # so that an attrition table says which MAF was looked for. See maf_step().
 STEP_MAF_FILES = "4. MAF file listing"
 STEP_DOWNLOAD = "5. download (size + md5 check)"
-STEP_MERGE = "6. merged MAF"
+#: Patients dropped by a quality flag. It precedes the merge because that is
+#: where they are actually removed: their files are left out of the merged MAF,
+#: so they never reach the no-variants check below.
+STEP_QUALITY_FLAGS = "6. quality flags"
+STEP_MERGE = "7. merged MAF"
 
 
 def maf_step(spec):

@@ -14,6 +14,7 @@ from .attrition import (
     STEP_DOWNLOAD,
     STEP_MAF_FILES,
     STEP_MERGE,
+    STEP_QUALITY_FLAGS,
     STEP_PROJECT,
     STEP_SEX,
     exclude_cases,
@@ -173,6 +174,7 @@ def summarize_attrition(
     cases,
     maf_files,
     download_check=None,
+    quality_flags=None,
     sample_qc=None,
     extra_steps=(),
     spec=WXS_ENSEMBLE_MAF,
@@ -193,6 +195,11 @@ def summarize_attrition(
         Output of :func:`gdc2maf.download.download_files`. Cases
         whose selected file is not ``"ok"`` are counted as lost at the
         download step. ``None`` skips that step.
+    quality_flags : pd.DataFrame or None, optional
+        Output of :meth:`gdc2maf.cohort.Cohort.quality_flags`, when those
+        patients were excluded from the merge. Counted as lost at the quality
+        flags step, which comes before the merge because that is where their
+        files were left out. ``None`` skips that step.
     sample_qc : pd.DataFrame or None, optional
         Output of :func:`gdc2maf.maf.merge_mafs`. Cases
         whose MAF has no variants are counted as lost at the merge step.
@@ -229,6 +236,16 @@ def summarize_attrition(
             "selected file " + cases["case_id"].map(failed).fillna(""),
         )
         steps.append(STEP_DOWNLOAD)
+    if quality_flags is not None:
+        reasons = (
+            quality_flags.groupby("submitter_id")["source"]
+            .agg(lambda sources: "flagged by " + ", ".join(sorted(set(sources))))
+        )
+        flagged = cases["submitter_id"].map(reasons)
+        cases = exclude_cases(
+            cases, flagged.notna(), STEP_QUALITY_FLAGS, flagged.fillna("")
+        )
+        steps.append(STEP_QUALITY_FLAGS)
     if sample_qc is not None:
         no_variants = sample_qc[~sample_qc["has_variants"].astype(bool)].set_index(
             "case_id"

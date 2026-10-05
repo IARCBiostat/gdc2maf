@@ -39,11 +39,19 @@ import logging
 from .cases import fetch_cases, fill_sex_from_table
 from .client import ensure_gdc_client, install_gdc_client
 from .clinical import fetch_clinical
+from .annotations import exclusion_flags, fetch_annotations
 from .cohort import CACHED_STEPS, Cohort
 from .download import check_downloaded_files, download_files, file_md5, write_manifest
 from .files import inspect_duplicates, list_maf_files
 from .maf import merge_mafs, read_gdc_maf
 from .record import download_record_text, write_if_changed
+from .pancan import (
+    fetch_pancan_clinical,
+    fetch_pancan_file,
+    fetch_pancan_quality_annotations,
+    do_not_use_patients,
+    load_quality_annotations,
+)
 from .provenance import configure_logging, environment_info, log_environment, tee_stdout
 from .selection import select_one_file_per_case
 from .spec import WXS_ENSEMBLE_MAF, FileSpec
@@ -61,6 +69,14 @@ __all__ = [
     # the steps, for callers that want them one at a time
     "fetch_cases",
     "fill_sex_from_table",
+    # GDC curation and the PanCanAtlas quality annotations
+    "fetch_annotations",
+    "exclusion_flags",
+    "fetch_pancan_file",
+    "fetch_pancan_clinical",
+    "fetch_pancan_quality_annotations",
+    "load_quality_annotations",
+    "do_not_use_patients",
     "fetch_clinical",
     "list_maf_files",
     "inspect_duplicates",

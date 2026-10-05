@@ -112,6 +112,37 @@ def add_cohort_arguments(parser):
         "(default: %(default)s)",
     )
 
+    group = parser.add_argument_group("quality flags")
+    group.add_argument(
+        "--quality-annotations",
+        metavar="TSV",
+        help="an existing PanCanAtlas merged_sample_quality_annotations.tsv to "
+        "read the Do_not_use flag from. Omitted, the table is downloaded "
+        "(md5-checked) into --pancan-dir the first time it is needed",
+    )
+    group.add_argument(
+        "--pancan-dir",
+        default="data/pancan",
+        metavar="DIR",
+        help="where the PanCanAtlas table is downloaded and reused from; safe "
+        "to share between cohorts (default: %(default)s)",
+    )
+    group.add_argument(
+        "--no-quality-annotations",
+        dest="fetch_quality_annotations",
+        action="store_false",
+        help="do not download or read the PanCanAtlas table; only the GDC's "
+        "own curation annotations can then flag a patient",
+    )
+    group.add_argument(
+        "--keep-flagged",
+        dest="exclude_flagged",
+        action="store_false",
+        help="keep the patients the quality flags list instead of excluding "
+        "them; <name>_quality_flags.tsv is written either way. Default: drop "
+        "them and record the loss in the attrition table",
+    )
+
     group = parser.add_argument_group("output")
     group.add_argument(
         "--out",
@@ -299,6 +330,10 @@ def cohort_from_args(args):
         sex_fallback_path=args.sex_fallback,
         sex_fallback_source=args.sex_fallback_source,
         remove_gdc_filter_flags=getattr(args, "remove_gdc_filter_flag", []),
+        quality_annotations_path=args.quality_annotations,
+        pancan_dir=args.pancan_dir,
+        fetch_quality_annotations=args.fetch_quality_annotations,
+        exclude_flagged=args.exclude_flagged,
         refresh=args.refresh,
     )
 

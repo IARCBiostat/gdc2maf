@@ -77,6 +77,43 @@ def test_cohort_options_reach_the_cohort(tmp_path):
     assert cohort.refresh == ["files"]
 
 
+def test_flagged_patients_are_excluded_unless_asked_otherwise(tmp_path):
+    args = parse("maf", "--project", "TCGA-LUAD", "--out", str(tmp_path))
+    assert cohort_from_args(args).exclude_flagged is True
+
+    args = parse(
+        "maf", "--project", "TCGA-LUAD", "--out", str(tmp_path), "--keep-flagged"
+    )
+    assert cohort_from_args(args).exclude_flagged is False
+
+
+def test_the_quality_annotations_table_reaches_the_cohort(tmp_path):
+    args = parse(
+        "maf", "--project", "TCGA-LUAD", "--out", str(tmp_path),
+        "--quality-annotations", "quality.tsv",
+    )
+    assert cohort_from_args(args).quality_annotations_path == "quality.tsv"
+
+
+def test_the_quality_table_is_fetched_by_default(tmp_path):
+    args = parse("maf", "--project", "TCGA-LUAD", "--out", str(tmp_path))
+    cohort = cohort_from_args(args)
+    # no path given: the table is downloaded on first use, into --pancan-dir
+    assert cohort.quality_annotations_path is None
+    assert cohort.fetch_quality_annotations is True
+    assert cohort.pancan_dir == "data/pancan"
+
+
+def test_the_quality_table_can_be_refused(tmp_path):
+    args = parse(
+        "maf", "--project", "TCGA-LUAD", "--out", str(tmp_path),
+        "--no-quality-annotations", "--pancan-dir", "ref/pancan",
+    )
+    cohort = cohort_from_args(args)
+    assert cohort.fetch_quality_annotations is False
+    assert cohort.pancan_dir == "ref/pancan"
+
+
 def test_download_defaults(tmp_path):
     args = parse("download", "--project", "TCGA-TEST", "--out", str(tmp_path))
     assert args.jobs == 8

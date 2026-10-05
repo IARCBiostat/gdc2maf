@@ -29,12 +29,18 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from . import reports
+from .annotations import exclusion_flags, fetch_annotations
 from .cases import fetch_cases
 from .client import ensure_gdc_client
 from .clinical import fetch_clinical
 from .download import download_files
 from .files import inspect_duplicates, list_maf_files
 from .maf import merge_mafs
+from .pancan import (
+    do_not_use_patients,
+    fetch_pancan_quality_annotations,
+    load_quality_annotations,
+)
 from .record import download_record_text, write_if_changed
 from .selection import select_one_file_per_case
 from .spec import WXS_ENSEMBLE_MAF, FileSpec
@@ -44,8 +50,7 @@ logger = logging.getLogger(__name__)
 #: Steps whose results are cached in ``out_dir`` and can be recomputed by name
 #: with ``refresh``. Duplicate inspection and file selection are not listed:
 #: they are fast, local and deterministic, so they always rerun.
-CACHED_STEPS = ("cases", "clinical", "files", "download", "merge")
-
+CACHED_STEPS = ("cases", "clinical", "files", "annotations", "download", "merge")
 
 @dataclass
 class Cohort:
@@ -80,6 +85,31 @@ class Cohort:
     remove_gdc_filter_flags : sequence of str, optional
         ``GDC_FILTER`` flags whose variants are dropped at the merge. Empty
         (the default) keeps every flagged variant and reports the counts.
+    quality_annotations_path : str or None, optional
+        Path of an existing PanCanAtlas
+        ``merged_sample_quality_annotations.tsv``, whose ``Do_not_use``
+        patients appear in :meth:`quality_flags`. ``None`` (the default)
+        downloads it into :attr:`pancan_dir` the first time it is needed,
+        unless :attr:`fetch_quality_annotations` is off.
+    pancan_dir : str, optional
+        Directory the PanCanAtlas table is downloaded into, and reused from on
+        later runs. Safe to share between cohorts.
+    fetch_quality_annotations : bool, optional
+        Download the PanCanAtlas table when no ``quality_annotations_path`` is
+        given. ``True`` (the default) fetches it once, md5-checked, the first
+        time :meth:`quality_flags` runs -- so ``Do_not_use`` is consulted
+        without any setup. It is skipped, with a note in the log, for a cohort
+        with no TCGA project: the PanCanAtlas covers TCGA only. ``False``
+        leaves the flag out and reports the GDC's own annotations alone.
+    exclude_flagged : bool, optional
+        Drop the patients :meth:`quality_flags` lists. ``True`` (the default)
+        excludes them and records the loss in the attrition table. Set it to
+        ``False`` to keep them and only report the flags, which is the right
+        choice if your study reads them differently: the GDC's own categories
+        are mostly clinical history, and the PanCan flag covers reasons such as
+        prior treatment and other platforms' QC. Note that the PanCanAtlas
+        half only applies when :attr:`quality_annotations_path` is set -- with
+        no table given there is nothing to exclude it on.
     maf_name : str or None, optional
         File name of the merged MAF inside ``out_dir``. ``None`` uses
         ``{name}_{spec.name}.maf``. Set it to keep an existing file name when
@@ -98,6 +128,10 @@ class Cohort:
     sex_fallback_path: str | None = None
     sex_fallback_source: str = "PanCan"
     remove_gdc_filter_flags: Sequence[str] = ()
+    quality_annotations_path: str | None = None
+    pancan_dir: str = "data/pancan"
+    fetch_quality_annotations: bool = True
+    exclude_flagged: bool = True
     maf_name: str | None = None
     refresh: Sequence[str] = field(default_factory=tuple)
 
@@ -154,6 +188,16 @@ class Cohort:
     def log_path(self):
         """Path of this cohort's run log."""
         return self.path("run.log")
+
+    @property
+    def annotations_path(self):
+        """Path of the GDC annotations table."""
+        return self.path("gdc_annotations.tsv")
+
+    @property
+    def quality_flags_path(self):
+        """Path of the quality flags table."""
+        return self.path("quality_flags.tsv")
 
     @property
     def record_path(self):
@@ -271,6 +315,165 @@ class Cohort:
             )
         return self._cache["selection"]
 
+    def annotations(self):
+        """Every GDC annotation on the cohort's files, aliquots and cases.
+
+        Queried for all three levels, because ``/annotations`` matches an
+        entity's own UUID: an annotation on a case is not returned for its
+        aliquots, nor the other way round.
+
+        An annotation is not a verdict. Every open WXS ensemble MAF carries one
+        saying "Variants from SomaticSniper are not included.", so presence
+        alone means nothing; :meth:`quality_flags` applies
+        :func:`gdc2maf.annotations.exclusion_flags` to pick out the ones that
+        question the material.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per annotation, saved as ``{name}_gdc_annotations.tsv``.
+        """
+
+        def build():
+            selected, _ = self.selection()
+            cases = self.cases()
+            entities = [
+                *selected["file_id"],
+                *selected["tumor_aliquot_id"],
+                *selected["normal_aliquot_id"],
+                *cases.loc[cases["included"], "case_id"],
+            ]
+            found = fetch_annotations(entities)
+            flagged = exclusion_flags(found)
+            logger.info(
+                f"{self.name}: {len(found)} GDC annotations on "
+                f"{len(set(entities))} files, aliquots and cases; "
+                f"{len(flagged)} exclusion-grade"
+            )
+            found.to_csv(self.annotations_path, sep="\t", index=False)
+            return found
+
+        return self._cached("annotations", self.annotations_path, build)
+
+    def _quality_annotations(self):
+        """Path of the PanCanAtlas quality table, downloading it if need be.
+
+        Returns ``None`` when the table is not to be used: either
+        :attr:`fetch_quality_annotations` is off, or the cohort has no TCGA
+        project, the only ones the PanCanAtlas covers.
+        """
+        if self.quality_annotations_path is not None:
+            return self.quality_annotations_path
+        if not self.fetch_quality_annotations:
+            return None
+        if not any(p.upper().startswith("TCGA-") for p in self.projects):
+            logger.info(
+                f"{self.name}: no TCGA project, so the PanCanAtlas Do_not_use "
+                f"flag does not apply; reporting the GDC's own annotations only"
+            )
+            return None
+        return fetch_pancan_quality_annotations(self.pancan_dir)["path"]
+
+    def quality_flags(self):
+        """Patients flagged by GDC curation or by the PanCanAtlas annotations.
+
+        Two sources, reported side by side:
+
+        - exclusion-grade GDC annotations (see
+          :data:`gdc2maf.annotations.EXCLUSION_CLASSIFICATIONS` and
+          :data:`gdc2maf.annotations.EXCLUSION_CATEGORIES`);
+        - ``Do_not_use`` in the PanCanAtlas sample quality annotations. The
+          table is downloaded on first use (see
+          :attr:`fetch_quality_annotations`) or read from
+          :attr:`quality_annotations_path`.
+
+        The table is the record either way; :attr:`exclude_flagged` (on by
+        default) decides whether the patients are also dropped. It is computed
+        once per ``Cohort`` and kept, since several steps ask for it.
+
+        Returns
+        -------
+        pd.DataFrame
+            ``submitter_id``, ``source``, ``reason`` -- one row per flag, so a
+            patient flagged by both sources appears twice. Saved as
+            ``{name}_quality_flags.tsv``.
+        """
+        if "quality_flags" in self._cache:
+            return self._cache["quality_flags"]
+
+        rows = []
+        flagged = exclusion_flags(self.annotations())
+        for _, a in flagged.iterrows():
+            rows.append({
+                "submitter_id": a["case_submitter_id"],
+                "source": "GDC annotation",
+                "reason": f"{a['classification']} / {a['category']}",
+            })
+
+        annotations_path = self._quality_annotations()
+        if annotations_path is not None:
+            selected, _ = self.selection()
+            do_not_use = do_not_use_patients(
+                load_quality_annotations(annotations_path)
+            )
+            for submitter_id in sorted(set(selected["submitter_id"]) & do_not_use):
+                rows.append({
+                    "submitter_id": submitter_id,
+                    "source": "PanCanAtlas",
+                    "reason": "Do_not_use",
+                })
+
+        flags = pd.DataFrame(rows, columns=["submitter_id", "source", "reason"])
+        flags.to_csv(self.quality_flags_path, sep="\t", index=False)
+        n_patients = flags["submitter_id"].nunique()
+        logger.info(
+            f"{self.name}: {len(flags)} quality flags on {n_patients} patients"
+            + ("" if self.exclude_flagged else " (reported, not excluded)")
+        )
+        self._cache["quality_flags"] = flags
+        return flags
+
+    def _flagged_patients(self):
+        """Submitter IDs to exclude: empty unless :attr:`exclude_flagged`."""
+        if not self.exclude_flagged:
+            return set()
+        return set(self.quality_flags()["submitter_id"])
+
+    def _without_flagged(self, selected):
+        """Drop the flagged patients' files from a selection table."""
+        flagged = self._flagged_patients()
+        if not flagged:
+            return selected
+        keep = ~selected["submitter_id"].isin(flagged)
+        logger.info(
+            f"{self.name}: excluding {(~keep).sum()} of {len(selected)} selected "
+            f"files from the merge, flagged by GDC curation or the PanCanAtlas"
+        )
+        return selected[keep]
+
+    def _warn_if_merge_predates_exclusion(self, sample_qc):
+        """Warn when a reused MAF still holds patients that are now excluded.
+
+        The merge is cached, so turning :attr:`exclude_flagged` on after a run
+        would otherwise reuse a MAF that still contains those patients while
+        the attrition table reported them as lost.
+        """
+        flagged = self._flagged_patients()
+        if not flagged or "case_id" not in sample_qc:
+            return
+        cases = self.cases()
+        flagged_cases = set(
+            cases.loc[cases["submitter_id"].isin(flagged), "case_id"]
+        )
+        still_there = sample_qc["case_id"].isin(flagged_cases).sum()
+        if still_there:
+            logger.warning(
+                f"{self.name}: {self.maf_path} was merged before these patients "
+                f"were excluded and still contains {still_there} of them. "
+                f"Rerun with refresh=['merge'] (--refresh merge) to rebuild it, "
+                f"or set exclude_flagged=False (--keep-flagged)."
+            )
+
     def gdc_client(self, version="2.3", install_dir="tools/gdc-client", path=None):
         """Locate or install gdc-client and record which binary was used.
 
@@ -350,6 +553,11 @@ class Cohort:
     def merged_maf(self):
         """Merge the cohort's MAFs into one MAF and run QC.
 
+        With :attr:`exclude_flagged` set, the patients :meth:`quality_flags`
+        lists are left out here: their files are not merged, so they are absent
+        from the MAF, from ``sample_qc`` and from anything built on either.
+        :meth:`attrition` reports them at the quality flags step.
+
         Returns
         -------
         maf : pd.DataFrame or None
@@ -365,6 +573,7 @@ class Cohort:
 
         def build():
             selected, _ = self.selection()
+            selected = self._without_flagged(selected)
             return merge_mafs(
                 self.name,
                 selected,
@@ -378,7 +587,9 @@ class Cohort:
             logger.info(
                 f"{self.name}: reusing {self.maf_path} and {self.sample_qc_path}"
             )
-            return None, pd.read_csv(self.sample_qc_path, sep="\t"), None
+            sample_qc = pd.read_csv(self.sample_qc_path, sep="\t")
+            self._warn_if_merge_predates_exclusion(sample_qc)
+            return None, sample_qc, None
 
         return self._cached("merge", self.sample_qc_path, build, load)
 
@@ -414,7 +625,14 @@ class Cohort:
         ----------
         extra_steps : sequence of (str, iterable, str), optional
             Further steps to append, as ``(step_label, case_ids_lost,
-            reason)``; see :func:`gdc2maf.reports.summarize_attrition`.
+            reason)``; see :func:`gdc2maf.reports.summarize_attrition`. They
+            are numbered from 8, after this package's own steps.
+
+        Notes
+        -----
+        With :attr:`exclude_flagged` set, the flagged patients are reported at
+        step 6, before the merge, which is where :meth:`merged_maf` actually
+        left their files out.
 
         Returns
         -------
@@ -429,6 +647,7 @@ class Cohort:
             self.cases(),
             self.maf_files(),
             download_check=self._download_check(),
+            quality_flags=self.quality_flags() if self.exclude_flagged else None,
             sample_qc=sample_qc,
             extra_steps=extra_steps,
             spec=self.spec,
