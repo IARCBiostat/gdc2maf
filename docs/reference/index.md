@@ -7,6 +7,10 @@ Every object below is documented on its module's page. The names marked
 *(top level)* are also importable straight from `gdc2maf`, which is the usual
 way to reach them — `from gdc2maf import Cohort`.
 
+{doc}`all` has the same material laid out differently: every public object with
+its full docstring on a single page, for reading straight through or searching
+with `Ctrl-F`.
+
 ## Modules
 
 ```{eval-rst}
@@ -131,6 +135,12 @@ way to reach them — `from gdc2maf import Cohort`.
    gdc2maf.pancan.do_not_use_patients
    gdc2maf.pancan.write_pancan_record
    gdc2maf.pancan.PANCAN_FILES
+```
+
+```{toctree}
+:hidden:
+
+all
 ```
 
 ### The download record

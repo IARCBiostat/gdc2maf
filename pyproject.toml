@@ -27,7 +27,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=7"]
 docs = [
-    "sphinx>=7",
+    "sphinx>=7.2",   # :no-index: on autodoc directives
     "myst-parser>=2",
     "sphinx-argparse>=0.4",
     "sphinx-design>=0.5",

@@ -38,7 +38,10 @@
   - Worked examples: a first cohort end to end, and a full mutational-signature
     pipeline built on the API.
 * - {doc}`reference/index`
-  - Every class and function, generated from the docstrings.
+  - Every class and function by topic, generated from the docstrings.
+* - {doc}`reference/all`
+  - The same reference on one page: every public object with its full
+    docstring, for reading through or searching.
 * - {doc}`decisions`
   - Why each step works the way it does: the alternatives considered, and the
     reason each was or was not taken.
@@ -123,5 +126,6 @@ tutorials/index
 :caption: Reference
 
 reference/index
+reference/all
 decisions
 ```
