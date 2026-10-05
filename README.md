@@ -29,19 +29,6 @@ pip install -e .
 To resolve and download your cohort from the GDC's open-access MAF files (token based
 download will be supported in the future) use either of the two methods below:
 
-**Command line** — one command, start to finish:
-
-```bash
-gdc2maf maf --project TCGA-LUAD --sex-at-birth male --name Lung_MALE
-```
-
-`--project` takes GDC project IDs, not a tissue or disease name, and a disease usually
-spans more than one project — TCGA lung cancer is `TCGA-LUAD` *and* `TCGA-LUSC`.
-[Cohorts and file specs](https://iarcbiostat.github.io/gdc2maf/cohorts.html#finding-the-project-ids)
-shows how to look the right ones up on the GDC portal or from its API.
-
-Writes `out/Lung_MALE/` (cases, file listing, selection, quality flags, merged MAF, QC
-and an attrition table) and downloads into `downloads/`.
 
 **Python** — the same run, as an object:
 
@@ -62,6 +49,21 @@ print(result["attrition"])
 
 Every step is also a method that returns DataFrames, so you can stop anywhere and inspect
 what happened.
+
+
+**Command line** — one command, start to finish:
+
+```bash
+gdc2maf maf --project TCGA-LUAD --sex-at-birth male --name Lung_MALE
+```
+
+`--project` takes GDC project IDs, not a tissue or disease name, and a disease usually
+spans more than one project — TCGA lung cancer is `TCGA-LUAD` *and* `TCGA-LUSC`.
+[Cohorts and file specs](https://iarcbiostat.github.io/gdc2maf/cohorts.html#finding-the-project-ids)
+shows how to look the right ones up on the GDC portal or from its API.
+
+Writes `out/Lung_MALE/` (cases, file listing, selection, quality flags, merged MAF, QC
+and an attrition table) and downloads into `downloads/`.
 <!-- docs-include: quickstart-end -->
 
 ## Where to read more
