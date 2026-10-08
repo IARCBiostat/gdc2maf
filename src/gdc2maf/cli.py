@@ -155,9 +155,11 @@ def add_cohort_arguments(parser):
         "--download-dir",
         default="downloads",
         metavar="DIR",
-        help="where gdc-client stores files, as DIR/<file_id>/<file_name>; safe to "
-        "share between cohorts, which avoids downloading a file twice "
-        "(default: %(default)s)",
+        help="where gdc-client stores files, as DIR/<file_id>/<file_name>. Use "
+        "ONE directory for every cohort: the folders are named after the GDC "
+        "file UUID and the merge looks its files up by UUID, so a file is "
+        "downloaded once however many cohorts select it. A directory per "
+        "cohort downloads it again for each (default: %(default)s)",
     )
     group.add_argument(
         "--refresh",

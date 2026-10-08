@@ -152,6 +152,21 @@ Every file is checked by size and md5 against the GDC's own metadata, before and
 after the transfer. A rerun re-checks and downloads only what is missing or
 corrupt.
 
+Files land in `downloads/<file_id>/<file_name>` — named after the GDC file UUID,
+with nothing about the cohort in the path. That is why `download_dir="downloads"`
+above is **not** `"downloads/Lung_MALE"`: point every cohort you ever build at the
+same directory and each file is downloaded once, however many cohorts select it.
+The merge finds its own files by UUID, so a directory holding other cohorts'
+files costs nothing.
+
+```python
+Cohort(name="Lung_MALE",  ..., download_dir="downloads")
+Cohort(name="Breast_F",   ..., download_dir="downloads")   # the same directory
+```
+
+A directory per cohort instead gives you duplicate copies of the same file as
+soon as two cohorts overlap — see {ref}`one-download-dir`.
+
 ### 6. Check the quality flags
 
 Two lists say a patient's material may be unusable: the GDC's own curation

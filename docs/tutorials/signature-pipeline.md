@@ -76,7 +76,7 @@ def main():
         projects=["TCGA-LUAD", "TCGA-LUSC"],
         sex_at_birth=["male"],
         out_dir="out/Lung_MALE",
-        download_dir="downloads",
+        download_dir="downloads",   # shared by every cohort; see ../outputs
     )
     cohort.run()
 
@@ -126,6 +126,13 @@ never see them, and `Lung_MALE_case_attrition.tsv` reports them at step 6.
 write-up of the analysis, so read {doc}`../quality` once before running the
 extraction; changing it afterwards means re-merging (`refresh=["merge"]`) and
 rerunning SigProfiler on new matrices.
+
+**One `download_dir` for all your cohorts.** A study is rarely one cohort, and
+`downloads/` is keyed by GDC file UUID, not by cohort, so the same directory
+serves every one of them and a file is fetched once. Running this script for a
+second cohort with its own download directory would fetch that cohort's files
+again from scratch whenever the two overlap — a sensitivity subset is the usual
+case. {doc}`../outputs` has the detail.
 
 **`read_merged_maf(usecols=...)` reads only what you need.** A cohort's merged MAF
 runs to hundreds of MB; this pulls back the 16 columns instead of all of them.

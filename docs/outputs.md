@@ -34,8 +34,55 @@ are:
 Pass `--record-dir` (or `record_dir=` to `cohort.run()`) to put it somewhere else, such as
 beside the merged MAF in `out_dir`.
 
+The name carries the cohort, so a download directory shared by several cohorts (see
+below) collects one record per cohort side by side rather than overwriting anything —
+which makes that directory the one place to read what every cohort in the study used.
+
 Nothing is deleted or overwritten silently except the log: a rerun reuses the tables it
 finds, and `--refresh` / `refresh=[...]` is how you ask for a step to be redone.
+
+(one-download-dir)=
+## One download directory for every cohort
+
+`--download-dir` (`download_dir=`) is not per cohort, and should not be made per
+cohort. gdc-client stores each file as **`DIR/<file_id>/<file_name>`** — named
+after the GDC file UUID, with nothing about a cohort in the path — and the merge
+looks its files up by UUID rather than by reading the directory. So one directory
+serves any number of cohorts:
+
+```bash
+gdc2maf maf --project TCGA-LUAD TCGA-LUSC --name Lung_MALE  --download-dir data/mafs
+gdc2maf maf --project TCGA-BRCA            --name Breast_F  --download-dir data/mafs
+```
+
+Each run downloads only the files its own cohort selected, and skips any that are
+already there and pass the size and md5 check.
+
+:::{warning}
+Give each cohort its own download directory and you get **duplicate copies of the
+same file** — every cohort that selects a file downloads it again, under its own
+directory, and the GDC is asked for bytes you already have.
+
+It costs nothing while cohorts are disjoint, which is why the mistake is easy to
+miss: two sex-split or different-project cohorts select different files, so
+nothing is duplicated and the layout looks fine. It bites as soon as one cohort
+overlaps another — a sensitivity subset (one analyte only, or `exclude_flagged=False`
+against the same patients), a combined cohort covering two existing ones, a
+re-slicing of the same projects. Those select files you have already downloaded,
+and a per-cohort directory fetches every one again.
+
+A shared directory also re-verifies every file's md5 on each run instead of one
+cohort's slice, so corruption in a file two cohorts share is caught either way.
+:::
+
+Moving to a shared directory needs no re-download. The `<file_id>/` folders are
+self-contained — each holds its `.maf.gz` and gdc-client's own `logs/` — so they
+can be moved up a level and the next run finds them by UUID and verifies them:
+
+```bash
+mkdir -p data/mafs
+mv data/mafs_per_cohort/*/*/ data/mafs/
+```
 
 ## What happens on a rerun
 
